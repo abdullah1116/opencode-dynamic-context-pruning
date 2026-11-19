@@ -215,15 +215,16 @@ export async function setup(ctx: Plugin.Context) {
                 )
                 const priorities = buildPriorityMap(config, state, view.messages)
                 prompts.reload()
-                injectCompressNudges(
-                    state,
-                    config,
-                    logger,
-                    view.messages,
-                    prompts.getRuntimePrompts(),
-                    priorities,
-                    kind === "context",
-                )
+                if (kind === "context") {
+                    await injectCompressNudges(
+                        { session: ctx.session },
+                        state,
+                        event.sessionID,
+                        config,
+                        logger,
+                        view.messages,
+                    )
+                }
                 injectMessageIds(state, config, view.messages, priorities)
                 applyPendingManualTrigger(state, view.messages, logger)
                 event.messages = view.restore()

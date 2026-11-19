@@ -1,7 +1,6 @@
 import type { SessionState, WithParts } from "../../state"
 import type { Logger } from "../../logger"
 import type { PluginConfig } from "../../config"
-import type { RuntimePrompts } from "../../prompts/store"
 import { formatMessageIdTag } from "../../message-ids"
 import type { CompressionPriorityMap } from "../priority"
 import { compressPermission } from "../../compress-permission"
@@ -19,26 +18,32 @@ import {
     createSyntheticTextPart,
     hasContent,
 } from "../utils"
+import { buildCeilingAlert, buildIterationAlert, buildWindowAlert } from "../../prompts/alerts"
 import {
-    addAnchor,
-    applyAnchoredNudges,
     countMessagesAfterIndex,
+    deliverSyntheticNudge,
     findLastNonIgnoredMessage,
+    getActiveBlockRefs,
     getIterationNudgeThreshold,
     getNudgeFrequency,
     getModelInfo,
     isContextOverLimits,
+    isNudgeDue,
+    type NudgeClient,
 } from "./utils"
 
-export const injectCompressNudges = (
+export const injectCompressNudges = async (
+    client: NudgeClient | undefined,
     state: SessionState,
+    sessionID: string | null,
     config: PluginConfig,
     logger: Logger,
     messages: WithParts[],
-    prompts: RuntimePrompts,
-    compressionPriorities?: CompressionPriorityMap,
-    createAnchors = true,
-): void => {
+): Promise<void> => {
+    if (!sessionID) {
+        return
+    }
+
     if (compressPermission(state, config) === "deny") {
         return
     }
@@ -47,26 +52,23 @@ export const injectCompressNudges = (
         return
     }
 
-    if (!createAnchors) {
-        applyAnchoredNudges(state, config, messages, prompts, compressionPriorities)
-        return
-    }
-
     const lastMessage = findLastNonIgnoredMessage(messages)
     const lastAssistantMessage = messages.findLast((message) => message.info.role === "assistant")
 
     if (lastAssistantMessage && messageHasCompress(lastAssistantMessage)) {
-        state.nudges.contextLimitAnchors.clear()
-        state.nudges.turnNudgeAnchors.clear()
-        state.nudges.iterationNudgeAnchors.clear()
-        void saveSessionState(state, logger)
+        state.nudges.ceilingAt = 0
+        state.nudges.iterationAt = 0
+        state.nudges.windowAt = 0
+        await saveSessionState(state, logger)
+        return
+    }
+
+    if (!lastMessage) {
         return
     }
 
     const { providerId, modelId } = getModelInfo(messages)
-    let anchorsChanged = false
-
-    const { overMaxLimit, overMinLimit } = isContextOverLimits(
+    const { tokens, min, max, overMaxLimit, overMinLimit } = isContextOverLimits(
         config,
         state,
         providerId,
@@ -74,78 +76,68 @@ export const injectCompressNudges = (
         messages,
     )
 
-    if (!overMinLimit) {
-        const hadTurnAnchors = state.nudges.turnNudgeAnchors.size > 0
-        const hadIterationAnchors = state.nudges.iterationNudgeAnchors.size > 0
+    let text: string | undefined
+    let trigger: "ceilingAt" | "iterationAt" | "windowAt" | undefined
 
-        if (hadTurnAnchors || hadIterationAnchors) {
-            state.nudges.turnNudgeAnchors.clear()
-            state.nudges.iterationNudgeAnchors.clear()
-            anchorsChanged = true
+    if (overMaxLimit && max !== undefined) {
+        if (isNudgeDue(state.nudges.ceilingAt, messages.length, getNudgeFrequency(config))) {
+            text = buildCeilingAlert({
+                tokens,
+                max,
+                over: tokens - max,
+                pct: max > 0 ? (tokens / max) * 100 : 0,
+            })
+            trigger = "ceilingAt"
         }
-    }
-
-    if (overMaxLimit) {
-        if (lastMessage) {
-            const interval = getNudgeFrequency(config)
-            const added = addAnchor(
-                state.nudges.contextLimitAnchors,
-                lastMessage.message.info.id,
-                lastMessage.index,
-                messages,
-                interval,
-            )
-            if (added) {
-                anchorsChanged = true
-            }
-        }
-    } else if (overMinLimit) {
-        const isLastMessageUser = lastMessage?.message.info.role === "user"
-
-        if (isLastMessageUser && lastAssistantMessage) {
-            const previousSize = state.nudges.turnNudgeAnchors.size
-            state.nudges.turnNudgeAnchors.add(lastMessage.message.info.id)
-            state.nudges.turnNudgeAnchors.add(lastAssistantMessage.info.id)
-            if (state.nudges.turnNudgeAnchors.size !== previousSize) {
-                anchorsChanged = true
-            }
-        }
-
+    } else {
         const lastUserMessage = getLastUserMessage(messages)
-        if (lastUserMessage && lastMessage) {
-            const lastUserMessageIndex = messages.findIndex(
-                (message) => message.info.id === lastUserMessage.info.id,
-            )
-            if (lastUserMessageIndex >= 0) {
-                const messagesSinceUser = countMessagesAfterIndex(messages, lastUserMessageIndex)
-                const iterationThreshold = getIterationNudgeThreshold(config)
+        const lastUserMessageIndex = lastUserMessage
+            ? messages.findIndex((message) => message.info.id === lastUserMessage.info.id)
+            : -1
+        const messagesSinceUser =
+            lastUserMessageIndex >= 0 ? countMessagesAfterIndex(messages, lastUserMessageIndex) : 0
 
-                if (
-                    lastMessage.index > lastUserMessageIndex &&
-                    messagesSinceUser >= iterationThreshold
-                ) {
-                    const interval = getNudgeFrequency(config)
-                    const added = addAnchor(
-                        state.nudges.iterationNudgeAnchors,
-                        lastMessage.message.info.id,
-                        lastMessage.index,
-                        messages,
-                        interval,
-                    )
+        const iterationCrossed =
+            lastUserMessageIndex >= 0 &&
+            lastMessage.index > lastUserMessageIndex &&
+            messagesSinceUser >= getIterationNudgeThreshold(config)
 
-                    if (added) {
-                        anchorsChanged = true
-                    }
-                }
+        if (iterationCrossed && max !== undefined) {
+            if (isNudgeDue(state.nudges.iterationAt, messages.length, getNudgeFrequency(config))) {
+                text = buildIterationAlert({ iterations: messagesSinceUser, tokens, max })
+                trigger = "iterationAt"
             }
+        } else if (
+            overMinLimit &&
+            min !== undefined &&
+            max !== undefined &&
+            lastMessage.message.info.role === "user" &&
+            lastAssistantMessage &&
+            isNudgeDue(state.nudges.windowAt, messages.length, 1)
+        ) {
+            const blockRefs = getActiveBlockRefs(state)
+            text = buildWindowAlert({
+                tokens,
+                max,
+                min,
+                headroom: max - tokens,
+                blockCount: blockRefs.length,
+                blockRefs,
+            })
+            trigger = "windowAt"
         }
     }
 
-    applyAnchoredNudges(state, config, messages, prompts, compressionPriorities)
-
-    if (anchorsChanged) {
-        void saveSessionState(state, logger)
+    if (!text || !trigger) {
+        return
     }
+
+    if (!(await deliverSyntheticNudge(client, sessionID, text, logger))) {
+        return
+    }
+
+    state.nudges[trigger] = messages.length
+    await saveSessionState(state, logger)
 }
 
 export const injectMessageIds = (

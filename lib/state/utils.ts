@@ -5,7 +5,6 @@ import type {
     SessionState,
     WithParts,
 } from "./types"
-import { isIgnoredUserMessage, messageHasCompress } from "../messages/query"
 import { isMessageWithInfo } from "../messages/shape"
 import { countTokens } from "../token-utils"
 
@@ -293,34 +292,6 @@ export function loadPruneMessagesState(
     return state
 }
 
-export function collectTurnNudgeAnchors(messages: WithParts[]): Set<string> {
-    const anchors = new Set<string>()
-    let pendingUserMessageId: string | null = null
-
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i]
-
-        if (messageHasCompress(message)) {
-            break
-        }
-
-        if (message.info.role === "user") {
-            if (!isIgnoredUserMessage(message)) {
-                pendingUserMessageId = message.info.id
-            }
-            continue
-        }
-
-        if (message.info.role === "assistant" && pendingUserMessageId) {
-            anchors.add(message.info.id)
-            anchors.add(pendingUserMessageId)
-            pendingUserMessageId = null
-        }
-    }
-
-    return anchors
-}
-
 export function getActiveSummaryTokenUsage(state: SessionState): number {
     let total = 0
     for (const blockId of state.prune.messages.activeBlockIds) {
@@ -343,8 +314,8 @@ export function resetOnCompaction(state: SessionState): void {
         nextRef: 1,
     }
     state.nudges = {
-        contextLimitAnchors: new Set<string>(),
-        turnNudgeAnchors: new Set<string>(),
-        iterationNudgeAnchors: new Set<string>(),
+        ceilingAt: 0,
+        iterationAt: 0,
+        windowAt: 0,
     }
 }

@@ -199,9 +199,6 @@ DCP exposes the following editable prompts:
 - `system`
 - `compress-range`
 - `compress-message`
-- `context-limit-nudge`
-- `turn-nudge`
-- `iteration-nudge`
 
 This feature is disabled by default. Set `experimental.customPrompts` to `true` in your DCP config to activate it.
 

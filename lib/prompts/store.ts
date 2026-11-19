@@ -6,26 +6,11 @@ import { systemPrompt } from "./system"
 import { rangePrompt } from "./compress-range"
 import { messagePrompt } from "./compress-message"
 import type { IdFormat } from "../message-ids"
-import { CONTEXT_LIMIT_NUDGE } from "./context-limit-nudge"
-import { TURN_NUDGE } from "./turn-nudge"
-import { ITERATION_NUDGE } from "./iteration-nudge"
 import { MANUAL_MODE_SYSTEM_EXTENSION, SUBAGENT_SYSTEM_EXTENSION } from "./extensions/system"
 
-export type PromptKey =
-    | "system"
-    | "compress-range"
-    | "compress-message"
-    | "context-limit-nudge"
-    | "turn-nudge"
-    | "iteration-nudge"
+export type PromptKey = "system" | "compress-range" | "compress-message"
 
-type EditablePromptField =
-    | "system"
-    | "compressRange"
-    | "compressMessage"
-    | "contextLimitNudge"
-    | "turnNudge"
-    | "iterationNudge"
+type EditablePromptField = "system" | "compressRange" | "compressMessage"
 
 interface PromptDefinition {
     key: PromptKey
@@ -51,9 +36,6 @@ export interface RuntimePrompts {
     system: string
     compressRange: string
     compressMessage: string
-    contextLimitNudge: string
-    turnNudge: string
-    iterationNudge: string
     manualExtension: string
     subagentExtension: string
 }
@@ -83,40 +65,9 @@ const PROMPT_DEFINITIONS: PromptDefinition[] = [
         usage: "Registered as the message-mode compress tool description",
         runtimeField: "compressMessage",
     },
-    {
-        key: "context-limit-nudge",
-        fileName: "context-limit-nudge.md",
-        label: "Context Limit Nudge",
-        description: "High-priority nudge when context is over max threshold",
-        usage: "Injected when context usage is beyond configured max limits",
-        runtimeField: "contextLimitNudge",
-    },
-    {
-        key: "turn-nudge",
-        fileName: "turn-nudge.md",
-        label: "Turn Nudge",
-        description: "Nudge to compress closed ranges at turn boundaries",
-        usage: "Injected when context is between min and max limits at a new user turn",
-        runtimeField: "turnNudge",
-    },
-    {
-        key: "iteration-nudge",
-        fileName: "iteration-nudge.md",
-        label: "Iteration Nudge",
-        description: "Nudge after many iterations without user input",
-        usage: "Injected when iteration threshold is crossed",
-        runtimeField: "iterationNudge",
-    },
 ]
 
-export const PROMPT_KEYS: PromptKey[] = [
-    "system",
-    "compress-range",
-    "compress-message",
-    "context-limit-nudge",
-    "turn-nudge",
-    "iteration-nudge",
-]
+export const PROMPT_KEYS: PromptKey[] = ["system", "compress-range", "compress-message"]
 
 const HTML_COMMENT_REGEX = /<!--[\s\S]*?-->/g
 const LEGACY_INLINE_COMMENT_LINE_REGEX = /^[ \t]*\/\/.*?\/\/[ \t]*$/gm
@@ -129,9 +80,6 @@ function bundledPrompts(format: IdFormat): Record<EditablePromptField, string> {
         system: systemPrompt(format),
         compressRange: rangePrompt(format),
         compressMessage: messagePrompt(format),
-        contextLimitNudge: CONTEXT_LIMIT_NUDGE,
-        turnNudge: TURN_NUDGE,
-        iterationNudge: ITERATION_NUDGE,
     }
 }
 
