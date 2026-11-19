@@ -20,8 +20,8 @@ import {
 } from "../utils"
 import { buildCeilingAlert, buildIterationAlert, buildWindowAlert } from "../../prompts/alerts"
 import {
+    appendEphemeralNudge,
     countMessagesAfterIndex,
-    deliverSyntheticNudge,
     findLastNonIgnoredMessage,
     getActiveBlockRefs,
     getIterationNudgeThreshold,
@@ -30,11 +30,10 @@ import {
     isContextOverLimits,
     isNudgeDue,
     isTokenNudgeDue,
-    type NudgeClient,
+    warnNudgeUnavailable,
 } from "./utils"
 
 export const injectCompressNudges = async (
-    client: NudgeClient | undefined,
     state: SessionState,
     sessionID: string | null,
     config: PluginConfig,
@@ -42,6 +41,11 @@ export const injectCompressNudges = async (
     messages: WithParts[],
 ): Promise<void> => {
     if (!sessionID) {
+        return
+    }
+
+    if (!Array.isArray(messages)) {
+        warnNudgeUnavailable(logger, sessionID)
         return
     }
 
@@ -67,6 +71,8 @@ export const injectCompressNudges = async (
     if (!lastMessage) {
         return
     }
+
+    const messageCount = messages.length
 
     const { providerId, modelId } = getModelInfo(messages)
     const { tokens, min, max, overMaxLimit, overMinLimit } = isContextOverLimits(
@@ -133,12 +139,12 @@ export const injectCompressNudges = async (
         return
     }
 
-    if (!(await deliverSyntheticNudge(client, sessionID, text, logger))) {
+    if (!appendEphemeralNudge(sessionID, trigger, text, messages)) {
         return
     }
 
     if (trigger === "iterationAt") {
-        state.nudges.iterationAt = messages.length
+        state.nudges.iterationAt = messageCount
     } else {
         state.nudges[trigger] = tokens
     }

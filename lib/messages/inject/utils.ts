@@ -4,20 +4,9 @@ import type { Logger } from "../../logger"
 import type { UserMessage } from "@opencode-ai/sdk/v2"
 import { formatBlockRef } from "../../message-ids"
 import { getLastUserMessage, isIgnoredUserMessage } from "../query"
+import { generateStableId } from "../utils"
 import { getCurrentTokenUsage } from "../../token-utils"
 import { getActiveSummaryTokenUsage } from "../../state/utils"
-
-export interface NudgeSyntheticInput {
-    sessionID: string
-    text: string
-    resume: boolean
-}
-
-export interface NudgeClient {
-    session?: {
-        synthetic?: (input: any) => Promise<unknown>
-    }
-}
 
 export interface LastUserModelContext {
     providerId: string | undefined
@@ -208,38 +197,68 @@ export function getActiveBlockRefs(state: SessionState, logger?: Logger): string
     return refs
 }
 
-const warnedSessions = new Set<string>()
+const warnedNudgeSessions = new Set<string>()
 
-function warnSyntheticUnavailable(logger: Logger, sessionID: string, error?: unknown): void {
-    if (warnedSessions.has(sessionID)) {
+export function warnNudgeUnavailable(logger: Logger, sessionID: string): void {
+    if (warnedNudgeSessions.has(sessionID)) {
         return
     }
 
-    warnedSessions.add(sessionID)
-    logger.warn("session.synthetic unavailable, skipping compress nudge", {
+    warnedNudgeSessions.add(sessionID)
+    logger.warn("nudge messages array unavailable, skipping compress nudge", {
         sessionID,
-        error: error instanceof Error ? error.message : undefined,
     })
 }
 
-export async function deliverSyntheticNudge(
-    client: NudgeClient | undefined,
+export function createEphemeralNudgeMessage(
+    baseMessage: WithParts,
     sessionID: string,
+    trigger: string,
     text: string,
-    logger: Logger,
-): Promise<boolean> {
-    const session = client?.session
-    if (!session || typeof session.synthetic !== "function") {
-        warnSyntheticUnavailable(logger, sessionID)
+): WithParts {
+    const userInfo = baseMessage.info as UserMessage
+    const seed = `${sessionID}:${trigger}`
+    const messageId = generateStableId("msg_nudge_ephemeral", seed)
+    const partId = generateStableId("prt_nudge_ephemeral", seed)
+
+    return {
+        info: {
+            id: messageId,
+            sessionID,
+            role: "user" as const,
+            agent: userInfo.agent,
+            model: userInfo.model,
+            time: { created: Date.now() },
+        },
+        parts: [
+            {
+                id: partId,
+                sessionID,
+                messageID: messageId,
+                type: "text" as const,
+                text,
+                synthetic: true,
+            },
+        ],
+    }
+}
+
+export function appendEphemeralNudge(
+    sessionID: string,
+    trigger: string,
+    text: string,
+    messages: WithParts[],
+): boolean {
+    const baseMessage = getLastUserMessage(messages)
+    if (!baseMessage) {
         return false
     }
 
-    const input: NudgeSyntheticInput = { sessionID, text, resume: false }
-    try {
-        await session.synthetic.call(session, input)
-        return true
-    } catch (error) {
-        warnSyntheticUnavailable(logger, sessionID, error)
+    const message = createEphemeralNudgeMessage(baseMessage, sessionID, trigger, text)
+    if (messages.some((existing) => existing.info.id === message.info.id)) {
         return false
     }
+
+    messages.push(message)
+    return true
 }

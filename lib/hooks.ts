@@ -146,7 +146,7 @@ export function createChatMessageTransformHandler(
         )
         const compressionPriorities = buildPriorityMap(config, state, output.messages)
         prompts.reload()
-        await injectCompressNudges(client, state, state.sessionId, config, logger, output.messages)
+        await injectCompressNudges(state, state.sessionId, config, logger, output.messages)
         injectMessageIds(state, config, output.messages, compressionPriorities)
         applyPendingManualTrigger(state, output.messages, logger)
         stripStaleMetadata(output.messages)

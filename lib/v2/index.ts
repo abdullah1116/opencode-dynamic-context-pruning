@@ -220,7 +220,6 @@ export async function setup(ctx: Plugin.Context) {
                 prompts.reload()
                 if (kind === "context") {
                     await injectCompressNudges(
-                        { session: ctx.session },
                         state,
                         event.sessionID,
                         config,
