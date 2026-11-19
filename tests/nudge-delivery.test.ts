@@ -254,3 +254,138 @@ test("missing session.synthetic is swallowed and logged once", async () => {
     assert.equal(warnings.length, 1)
     assert.match(warnings[0], /session\.synthetic unavailable/)
 })
+
+test("window nudge is edge-triggered and re-arms only past the token delta", async () => {
+    const state = createSessionState()
+    const { calls, client } = buildRecorder()
+    const config = buildConfig({ maxContextLimit: 50000, minContextLimit: 100 })
+
+    const first = [
+        buildUserMessage("msg-window-edge-user-1", 1),
+        buildAssistantMessage("msg-window-edge-assistant-1", 2, 1000),
+        buildUserMessage("msg-window-edge-user-2", 3),
+    ]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        first,
+    )
+    assert.equal(calls.length, 1)
+    assert.match(calls[0].text, /CONTEXT WINDOW ALERT/)
+
+    const second = [
+        ...first,
+        buildAssistantMessage("msg-window-edge-assistant-2", 4, 1020),
+        buildUserMessage("msg-window-edge-user-3", 5),
+    ]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        second,
+    )
+    assert.equal(calls.length, 1)
+
+    const third = [
+        ...second,
+        buildAssistantMessage("msg-window-edge-assistant-3", 6, 6020),
+        buildUserMessage("msg-window-edge-user-4", 7),
+    ]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        third,
+    )
+    assert.equal(calls.length, 2)
+    assert.match(calls[1].text, /CONTEXT WINDOW ALERT/)
+})
+
+test("ceiling nudge is edge-triggered and re-arms only past the token delta", async () => {
+    const state = createSessionState()
+    const { calls, client } = buildRecorder()
+    const config = buildConfig({ maxContextLimit: 5000, minContextLimit: 100 })
+
+    const first = [
+        buildUserMessage("msg-ceiling-edge-user-1", 1),
+        buildAssistantMessage("msg-ceiling-edge-assistant-1", 2, 6000),
+    ]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        first,
+    )
+    assert.equal(calls.length, 1)
+    assert.match(calls[0].text, /CONTEXT CEILING EXCEEDED/)
+
+    const second = [...first, buildAssistantMessage("msg-ceiling-edge-assistant-2", 3, 6100)]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        second,
+    )
+    assert.equal(calls.length, 1)
+
+    const third = [...second, buildAssistantMessage("msg-ceiling-edge-assistant-3", 4, 11100)]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        third,
+    )
+    assert.equal(calls.length, 2)
+    assert.match(calls[1].text, /CONTEXT CEILING EXCEEDED/)
+})
+
+test("iteration nudge keeps its message-count cadence", async () => {
+    const state = createSessionState()
+    const { calls, client } = buildRecorder()
+    const config = buildConfig({
+        maxContextLimit: 5000,
+        minContextLimit: 100,
+        iterationNudgeThreshold: 1,
+        nudgeFrequency: 1,
+    })
+
+    const first = [
+        buildUserMessage("msg-iteration-cadence-user", 1),
+        buildAssistantMessage("msg-iteration-cadence-assistant-1", 2, 900),
+    ]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        first,
+    )
+    assert.equal(calls.length, 1)
+    assert.match(calls[0].text, /ITERATION CHECKPOINT/)
+
+    const second = [...first, buildAssistantMessage("msg-iteration-cadence-assistant-2", 3, 900)]
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        second,
+    )
+    assert.equal(calls.length, 2)
+    assert.match(calls[1].text, /ITERATION CHECKPOINT/)
+})

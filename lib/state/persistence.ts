@@ -28,9 +28,9 @@ export interface PersistedPrune {
 }
 
 export interface PersistedNudges {
-    ceilingAt?: number
+    ceilingTokens?: number
     iterationAt?: number
-    windowAt?: number
+    windowTokens?: number
 }
 
 export interface PersistedSessionState {
@@ -95,9 +95,9 @@ export async function saveSessionState(
                 messages: serializePruneMessagesState(sessionState.prune.messages),
             },
             nudges: {
-                ceilingAt: sessionState.nudges.ceilingAt,
+                ceilingTokens: sessionState.nudges.ceilingTokens,
                 iterationAt: sessionState.nudges.iterationAt,
-                windowAt: sessionState.nudges.windowAt,
+                windowTokens: sessionState.nudges.windowTokens,
             },
             stats: sessionState.stats,
             lastUpdated: new Date().toISOString(),
@@ -148,9 +148,9 @@ export async function loadSessionState(
                 ? Math.floor(value)
                 : 0
         state.nudges = {
-            ceilingAt: nudgeCount(state.nudges.ceilingAt),
+            ceilingTokens: nudgeCount(state.nudges.ceilingTokens),
             iterationAt: nudgeCount(state.nudges.iterationAt),
-            windowAt: nudgeCount(state.nudges.windowAt),
+            windowTokens: nudgeCount(state.nudges.windowTokens),
         }
 
         logger.info("Loaded session state from disk", {
@@ -182,9 +182,9 @@ function emptyPersistedState(manualMode: boolean): PersistedSessionState {
             },
         },
         nudges: {
-            ceilingAt: 0,
+            ceilingTokens: 0,
             iterationAt: 0,
-            windowAt: 0,
+            windowTokens: 0,
         },
         stats: {
             pruneTokenCounter: 0,

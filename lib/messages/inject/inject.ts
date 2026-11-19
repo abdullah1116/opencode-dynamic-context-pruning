@@ -29,6 +29,7 @@ import {
     getModelInfo,
     isContextOverLimits,
     isNudgeDue,
+    isTokenNudgeDue,
     type NudgeClient,
 } from "./utils"
 
@@ -56,9 +57,9 @@ export const injectCompressNudges = async (
     const lastAssistantMessage = messages.findLast((message) => message.info.role === "assistant")
 
     if (lastAssistantMessage && messageHasCompress(lastAssistantMessage)) {
-        state.nudges.ceilingAt = 0
+        state.nudges.ceilingTokens = 0
         state.nudges.iterationAt = 0
-        state.nudges.windowAt = 0
+        state.nudges.windowTokens = 0
         await saveSessionState(state, logger)
         return
     }
@@ -77,17 +78,17 @@ export const injectCompressNudges = async (
     )
 
     let text: string | undefined
-    let trigger: "ceilingAt" | "iterationAt" | "windowAt" | undefined
+    let trigger: "ceilingTokens" | "iterationAt" | "windowTokens" | undefined
 
     if (overMaxLimit && max !== undefined) {
-        if (isNudgeDue(state.nudges.ceilingAt, messages.length, getNudgeFrequency(config))) {
+        if (isTokenNudgeDue(state.nudges.ceilingTokens, tokens, max)) {
             text = buildCeilingAlert({
                 tokens,
                 max,
                 over: tokens - max,
                 pct: max > 0 ? (tokens / max) * 100 : 0,
             })
-            trigger = "ceilingAt"
+            trigger = "ceilingTokens"
         }
     } else {
         const lastUserMessage = getLastUserMessage(messages)
@@ -113,7 +114,7 @@ export const injectCompressNudges = async (
             max !== undefined &&
             lastMessage.message.info.role === "user" &&
             lastAssistantMessage &&
-            isNudgeDue(state.nudges.windowAt, messages.length, 1)
+            isTokenNudgeDue(state.nudges.windowTokens, tokens, max)
         ) {
             const blockRefs = getActiveBlockRefs(state)
             text = buildWindowAlert({
@@ -124,7 +125,7 @@ export const injectCompressNudges = async (
                 blockCount: blockRefs.length,
                 blockRefs,
             })
-            trigger = "windowAt"
+            trigger = "windowTokens"
         }
     }
 
@@ -136,7 +137,11 @@ export const injectCompressNudges = async (
         return
     }
 
-    state.nudges[trigger] = messages.length
+    if (trigger === "iterationAt") {
+        state.nudges.iterationAt = messages.length
+    } else {
+        state.nudges[trigger] = tokens
+    }
     await saveSessionState(state, logger)
 }
 

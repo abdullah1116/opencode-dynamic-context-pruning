@@ -49,6 +49,14 @@ export function isNudgeDue(lastAt: number, messageCount: number, interval: numbe
     return lastAt === 0 || messageCount - lastAt >= interval
 }
 
+export function getNudgeRearmDelta(max: number): number {
+    return Math.max(5000, Math.round(max * 0.05))
+}
+
+export function isTokenNudgeDue(lastTokens: number, tokens: number, max: number): boolean {
+    return lastTokens === 0 || tokens - lastTokens >= getNudgeRearmDelta(max)
+}
+
 export function findLastNonIgnoredMessage(messages: WithParts[]): LastNonIgnoredMessage | null {
     for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i]

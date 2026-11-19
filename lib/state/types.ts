@@ -87,9 +87,9 @@ export interface MessageIdState {
 }
 
 export interface Nudges {
-    ceilingAt: number
+    ceilingTokens: number
     iterationAt: number
-    windowAt: number
+    windowTokens: number
 }
 
 export interface SessionState {

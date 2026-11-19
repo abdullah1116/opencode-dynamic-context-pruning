@@ -1,5 +1,6 @@
 import type {
     CompressionBlock,
+    Nudges,
     PruneMessagesState,
     PrunedMessageEntry,
     SessionState,
@@ -106,6 +107,17 @@ export function loadPruneMap(obj?: Record<string, number>): Map<string, number> 
             typeof entry[0] === "string" && typeof entry[1] === "number",
     )
     return new Map(entries)
+}
+
+export function loadNudges(persisted?: Partial<Nudges>): Nudges {
+    const stamp = (value: unknown): number =>
+        typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0
+
+    return {
+        ceilingTokens: stamp(persisted?.ceilingTokens),
+        iterationAt: stamp(persisted?.iterationAt),
+        windowTokens: stamp(persisted?.windowTokens),
+    }
 }
 
 export function createPruneMessagesState(): PruneMessagesState {
@@ -314,8 +326,8 @@ export function resetOnCompaction(state: SessionState): void {
         nextRef: 1,
     }
     state.nudges = {
-        ceilingAt: 0,
+        ceilingTokens: 0,
         iterationAt: 0,
-        windowAt: 0,
+        windowTokens: 0,
     }
 }

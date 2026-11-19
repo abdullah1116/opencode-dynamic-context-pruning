@@ -10,6 +10,7 @@ import {
     createPruneMessagesState,
     loadPruneMessagesState,
     loadPruneMap,
+    loadNudges,
 } from "./utils"
 import { getLastUserMessage } from "../messages/query"
 import type { IdFormat } from "../message-ids"
@@ -76,9 +77,9 @@ export function createSessionState(idFormat: IdFormat = "xml"): SessionState {
             messages: createPruneMessagesState(),
         },
         nudges: {
-            ceilingAt: 0,
+            ceilingTokens: 0,
             iterationAt: 0,
-            windowAt: 0,
+            windowTokens: 0,
         },
         stats: {
             pruneTokenCounter: 0,
@@ -114,9 +115,9 @@ export function resetSessionState(state: SessionState): void {
         messages: createPruneMessagesState(),
     }
     state.nudges = {
-        ceilingAt: 0,
+        ceilingTokens: 0,
         iterationAt: 0,
-        windowAt: 0,
+        windowTokens: 0,
     }
     state.stats = {
         pruneTokenCounter: 0,
@@ -173,11 +174,7 @@ export async function ensureSessionInitialized(
 
     state.prune.tools = loadPruneMap(persisted.prune.tools)
     state.prune.messages = loadPruneMessagesState(persisted.prune.messages)
-    state.nudges = {
-        ceilingAt: persisted.nudges.ceilingAt ?? 0,
-        iterationAt: persisted.nudges.iterationAt ?? 0,
-        windowAt: persisted.nudges.windowAt ?? 0,
-    }
+    state.nudges = loadNudges(persisted.nudges)
     state.stats = {
         pruneTokenCounter: persisted.stats?.pruneTokenCounter || 0,
         totalPruneTokens: persisted.stats?.totalPruneTokens || 0,
