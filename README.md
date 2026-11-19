@@ -17,6 +17,20 @@ opencode plugin add @tarquinen/opencode-dcp@latest
 
 This installs the package and adds it to your global OpenCode config.
 
+## Install from source
+
+Clone this branch and run `npm install --legacy-peer-deps`: a known upstream peer conflict between `@opencode/plugin` and the pinned `@opentui/*` requires the flag — not an issue with your clone. The `prepare` script builds `dist/` automatically, so no extra steps are needed. Register the local build in your OpenCode `opencode.jsonc` with an absolute-directory entry:
+
+```jsonc
+{
+    "plugins": ["/absolute/path/to/opencode-dynamic-context-pruning"]
+}
+```
+
+OpenCode V2 uses the `plugins` key (plural); a `plugin` entry is V1 and is invisible to `opencode plugin list`, `check`, and `update`.
+
+`dist/` is gitignored by design: each machine builds its own.
+
 ## Project Status
 
 Development on DCP has slowed because most new context-management work has moved to [Sleev](https://sleev.ai) and the `sleev` CLI.
