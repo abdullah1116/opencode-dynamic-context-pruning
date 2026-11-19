@@ -7,8 +7,8 @@ const windowInput = {
     max: 200000,
     min: 160000,
     headroom: 12568,
-    blockCount: 3,
-    blockRefs: ["b1", "b4", "b6"],
+    blockCount: 2,
+    blockRefs: ["@b1@", "@b2@"],
 }
 
 test("window alert renders the exact banner frame", () => {
@@ -31,14 +31,15 @@ test("window alert renders the exact banner frame", () => {
     assert.match(message, /\n  ⚠  CONTEXT  :  187,432 \/ 200,000 tokens   \(94%\)\n/)
     assert.match(message, /\n  ⚠  WINDOW   :  160,000 – 200,000\n/)
     assert.match(message, /\n  ⚠  HEADROOM :  12,568 tokens before the hard ceiling\n/)
-    assert.match(message, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 3 \(b1, b4, b6\)\n/)
+    assert.match(message, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 2 \(@b1@, @b2@\)\n/)
     assert.match(message, /call `compress` on them NOW/)
 })
 
-test("window alert falls back to no refs for an empty block list", () => {
+test("window alert omits the ref parenthetical when no blocks are compressed", () => {
     const message = buildWindowAlert({ ...windowInput, blockCount: 0, blockRefs: [] })
 
-    assert.match(message, /COMPRESSED BLOCKS IN SESSION: 0 \(none\)/)
+    assert.match(message, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 0\n/)
+    assert.doesNotMatch(message, /COMPRESSED BLOCKS IN SESSION: 0 \(/)
 })
 
 test("ceiling alert renders the exact banner frame", () => {
@@ -91,7 +92,7 @@ test("thousands separators apply to every rendered count", () => {
     assert.match(message, /1,234,567 \/ 2,000,000 tokens/)
     assert.match(message, /1,000,000 – 2,000,000/)
     assert.match(message, /765,433 tokens/)
-    assert.match(message, /IN SESSION: 1,000 \(none\)/)
+    assert.match(message, /IN SESSION: 1,000\n/)
 })
 
 test("escalation glyphs are exclusive to one builder each", () => {

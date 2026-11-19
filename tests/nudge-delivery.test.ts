@@ -209,6 +209,32 @@ test("window nudge is selected in-window at a user turn boundary", async () => {
     assert.equal(calls[0].resume, false)
 })
 
+test("window nudge lists active blocks as the placeholders compress requires", async () => {
+    const messages = [
+        buildUserMessage("msg-user-refs-1", 1),
+        buildAssistantMessage("msg-assistant-refs", 2, 900),
+        buildUserMessage("msg-user-refs-2", 3),
+    ]
+    const state = createSessionState("compact")
+    state.prune.messages.activeBlockIds.add(2)
+    state.prune.messages.activeBlockIds.add(1)
+    state.prune.messages.activeBlockIds.add(0)
+    const { calls, client } = buildRecorder()
+    const config = buildConfig({ maxContextLimit: 5000, minContextLimit: 100 })
+
+    await injectCompressNudges(
+        client,
+        state,
+        sessionID,
+        config,
+        buildLogger(() => {}),
+        messages,
+    )
+
+    assert.equal(calls.length, 1)
+    assert.match(calls[0].text, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 2 \(@b1@, @b2@\)\n/)
+})
+
 test("repeated evaluations stay quiet until the frequency gate opens", async () => {
     const messages = [
         buildUserMessage("msg-user-repeat", 1),

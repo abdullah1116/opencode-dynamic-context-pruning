@@ -177,8 +177,15 @@ export const stripHallucinationsFromString = (text: string, format: IdFormat = "
         .replace(DCP_UNPAIRED_TAG_REGEX, "")
 }
 
-export const stripHallucinations = (messages: WithParts[], format: IdFormat = "xml"): void => {
+export const stripHallucinations = (
+    messages: WithParts[],
+    format: IdFormat = "xml",
+    skipMessageIds?: ReadonlySet<string>,
+): void => {
     for (const message of messages) {
+        if (skipMessageIds?.has(message.info.id)) {
+            continue
+        }
         for (const part of message.parts) {
             if (part.type === "text" && typeof part.text === "string") {
                 part.text = stripHallucinationsFromString(part.text, format)

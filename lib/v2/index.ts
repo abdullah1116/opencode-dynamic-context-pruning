@@ -199,7 +199,10 @@ export async function setup(ctx: Plugin.Context) {
                     agent: event.agent,
                     model: event.model,
                 })
-                stripHallucinations(view.messages, state.idFormat)
+                const syntheticMessageIds = new Set(
+                    entries.filter((entry) => entry.type === "synthetic").map((entry) => entry.id),
+                )
+                stripHallucinations(view.messages, state.idFormat, syntheticMessageIds)
                 assignMessageRefs(state, view.messages)
                 // Compaction may select only a prefix; block origins can be in the retained tail.
                 syncCompressionBlocks(state, logger, messages)

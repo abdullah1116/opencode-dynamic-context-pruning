@@ -12,7 +12,7 @@ function formatPercent(value: number, total: number): string {
 }
 
 function formatBlockRefs(refs: string[]): string {
-    return refs.length > 0 ? refs.join(", ") : "none"
+    return refs.length > 0 ? ` (${refs.join(", ")})` : ""
 }
 
 export interface WindowAlertInput {
@@ -53,7 +53,7 @@ export function buildWindowAlert(input: WindowAlertInput): string {
 
 ───────────────────────────────────────────────────────────────
 
-  ▣  COMPRESSED BLOCKS IN SESSION: ${blockCount} (${refs})
+  ▣  COMPRESSED BLOCKS IN SESSION: ${blockCount}${refs}
 
      If your chosen range includes a listed block, include each
      required placeholder exactly once in the summary.

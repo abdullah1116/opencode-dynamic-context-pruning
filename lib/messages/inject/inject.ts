@@ -116,7 +116,7 @@ export const injectCompressNudges = async (
             lastAssistantMessage &&
             isTokenNudgeDue(state.nudges.windowTokens, tokens, max)
         ) {
-            const blockRefs = getActiveBlockRefs(state)
+            const blockRefs = getActiveBlockRefs(state, logger)
             text = buildWindowAlert({
                 tokens,
                 max,

@@ -177,11 +177,35 @@ export function isContextOverLimits(
     }
 }
 
-export function getActiveBlockRefs(state: SessionState): string[] {
-    return Array.from(state.prune.messages.activeBlockIds)
+const warnedRefSessions = new Set<string>()
+
+export function getActiveBlockRefs(state: SessionState, logger?: Logger): string[] {
+    const refs: string[] = []
+    const blockIds = Array.from(state.prune.messages.activeBlockIds)
         .filter((id) => Number.isInteger(id) && id > 0)
         .sort((a, b) => a - b)
-        .map((id) => formatBlockRef(id, state.idFormat))
+
+    for (const id of blockIds) {
+        try {
+            const ref = formatBlockRef(id, state.idFormat)
+            if (ref.length === 0) {
+                throw new Error("empty block ref")
+            }
+            refs.push(ref)
+        } catch (error) {
+            const sessionID = state.sessionId ?? "unknown"
+            if (!warnedRefSessions.has(sessionID)) {
+                warnedRefSessions.add(sessionID)
+                logger?.warn("failed to format active block ref, omitting it", {
+                    sessionID,
+                    blockId: id,
+                    error: error instanceof Error ? error.message : undefined,
+                })
+            }
+        }
+    }
+
+    return refs
 }
 
 const warnedSessions = new Set<string>()
