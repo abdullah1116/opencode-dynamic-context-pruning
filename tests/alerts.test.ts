@@ -11,35 +11,37 @@ const windowInput = {
     blockRefs: ["@b1@", "@b2@"],
 }
 
-test("window alert renders the exact banner frame", () => {
+test("window alert renders the checkpoint banner frame", () => {
     const message = buildWindowAlert(windowInput)
 
     assert.ok(
         message.startsWith(
             "╔═══════════════════════════════════════════════════════════════╗\n" +
-                "║   ▲▲▲   CONTEXT WINDOW ALERT   ▲▲▲   ACTION REQUIRED          ║\n" +
+                "║   CONTEXT CHECKPOINT · sweep due · nothing settled may be lost║\n" +
                 "╚═══════════════════════════════════════════════════════════════╝",
         ),
     )
     assert.ok(
         message.endsWith(
-            "╔═══════════════════════════════════════════════════════════════╗\n" +
-                "║  ⚑   DO NOT LET THE CEILING ARRIVE UNNOTICED                  ║\n" +
+            "  Blocks already compressed: 2 (@b1@, @b2@)\n" +
                 "╚═══════════════════════════════════════════════════════════════╝",
         ),
     )
-    assert.match(message, /\n  ⚠  CONTEXT  :  187,432 \/ 200,000 tokens   \(94%\)\n/)
-    assert.match(message, /\n  ⚠  WINDOW   :  160,000 – 200,000\n/)
-    assert.match(message, /\n  ⚠  HEADROOM :  12,568 tokens before the hard ceiling\n/)
-    assert.match(message, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 2 \(@b1@, @b2@\)\n/)
-    assert.match(message, /call `compress` on them NOW/)
+    assert.match(message, /\n  CONTEXT    187,432 \/ 200,000 tokens   \(94%\)\n/)
+    assert.match(message, /\n  HEADROOM   12,568 before the limit\n/)
+    assert.match(message, /\n  BAND       160,000 – 200,000\n/)
+    assert.match(message, /COMMAND: take one cheap pass over this window before continuing\./)
+    assert.match(message, /X ERRATA   corrections                 → keep the fix, kill the corpse/)
+    assert.match(message, /TRUTH LENS FIRST/)
+    assert.doesNotMatch(message, /ACTION REQUIRED/)
+    assert.doesNotMatch(message, /NOW/)
 })
 
 test("window alert omits the ref parenthetical when no blocks are compressed", () => {
     const message = buildWindowAlert({ ...windowInput, blockCount: 0, blockRefs: [] })
 
-    assert.match(message, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 0\n/)
-    assert.doesNotMatch(message, /COMPRESSED BLOCKS IN SESSION: 0 \(/)
+    assert.match(message, /\n  Blocks already compressed: 0\n/)
+    assert.doesNotMatch(message, /compressed: 0 \(/)
 })
 
 test("ceiling alert renders the exact banner frame", () => {
@@ -91,8 +93,8 @@ test("thousands separators apply to every rendered count", () => {
 
     assert.match(message, /1,234,567 \/ 2,000,000 tokens/)
     assert.match(message, /1,000,000 – 2,000,000/)
-    assert.match(message, /765,433 tokens/)
-    assert.match(message, /IN SESSION: 1,000\n/)
+    assert.match(message, /HEADROOM   765,433 before the limit/)
+    assert.match(message, /Blocks already compressed: 1,000\n/)
 })
 
 test("escalation glyphs are exclusive to one builder each", () => {
@@ -100,15 +102,13 @@ test("escalation glyphs are exclusive to one builder each", () => {
     const ceilingAlert = buildCeilingAlert({ tokens: 214900, max: 200000, over: 14900, pct: 107 })
     const iterationAlert = buildIterationAlert({ iterations: 12, tokens: 187432, max: 200000 })
 
-    assert.ok(windowAlert.includes("▲"))
-    assert.ok(!ceilingAlert.includes("▲"))
-    assert.ok(!iterationAlert.includes("▲"))
+    assert.ok(!windowAlert.includes("▲"))
+    assert.ok(!windowAlert.includes("⛔"))
+    assert.ok(!windowAlert.includes("◇"))
 
     assert.ok(ceilingAlert.includes("⛔"))
-    assert.ok(!windowAlert.includes("⛔"))
     assert.ok(!iterationAlert.includes("⛔"))
 
     assert.ok(iterationAlert.includes("◇"))
-    assert.ok(!windowAlert.includes("◇"))
     assert.ok(!ceilingAlert.includes("◇"))
 })
