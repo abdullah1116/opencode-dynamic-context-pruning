@@ -8,42 +8,60 @@ export function rangePrompt(format: IdFormat = "xml"): string {
     return `Collapse a range in the conversation into a detailed summary.
 
 THE SUMMARY
-Your summary must be EXHAUSTIVE. Capture file paths, function signatures, decisions made, constraints discovered, key findings... EVERYTHING that maintains context integrity. This is not a brief note - it is an authoritative record so faithful that the original conversation adds no value.
+Your summary is an authoritative record. Be EXHAUSTIVE for the ★ subtypes and LEAN everywhere else. That is the whole trade-off: detail goes to ★, brevity comes from everything else, and what you cannot classify earns no record at all.
 
 USER INTENT FIDELITY
-When the compressed range includes user messages, preserve the user's intent with extra care. Do not change scope, constraints, priorities, acceptance criteria, or requested outcomes.
-Directly quote user messages when they are short enough to include safely. Direct quotes are preferred when they best preserve exact meaning.
+User messages are the highest authority in the record. Preserve scope, constraints, priorities and acceptance criteria exactly as stated. Quote user messages verbatim whenever they are short enough, and quote ALL user input from past phases, not only the recent lines.
 
-Yet be LEAN. Strip away the noise: failed attempts that led nowhere, verbose tool outputs, back-and-forth exploration. What remains should be pure signal - golden nuggets of detail that preserve full understanding with zero ambiguity.
+CONTEXT MAP — classify every message before you write
+       A ACTIVE   in-flight this phase     → keep raw (never inside a compressed range)
+       L LEDGER   decided, past phases     → compress; user words verbatim
+       R RECORD   finished work            → compress to outcomes
+       X ERRATA   corrections              → keep the fix verbatim, mark the corpse
+       F DROSS    failed or retried runs   → drop (one clause if a lesson survived)
+       T FACTS    paths, branches, links   → fact list
+       O OPEN     unresolved threads       → keep listed
+       C CHAFF    status noise             → drop
 
-COMPRESSED BLOCK PLACEHOLDERS
-When the selected range includes previously compressed blocks, use this exact placeholder format when referencing one:
+★ NEVER LOSE — if length forces a choice, ★ detail wins over all prose:
+       A1 target in hand      A2 operation in flight   A4 this phase's user words
+       L1 user verdicts       L2 constraints           R1 shipped work (with IDs)
+       T1 coordinates         T3 tool/CLI quirks       O1 in-flight dependencies
+       O2 unanswered asks     X1 user corrections      X3 reversals
+
+THREE LENSES — same order, every message
+  1. TRUTH  — is this already corrected? ERRATA rules before anything else.
+  2. LOSS   — would losing it force re-derivation? ★ items survive in full.
+  3. WASTE  — is it replayable from files or elsewhere? drop without a record.
+
+ERRORS
+Never preserve an error that was later fixed. Its only memory is the working invocation, now in FACTS, plus one clause for the lesson, if one survived.
+
+COMPRESSED BLOCKS
+The range may consume blocks that are already compressed. The tool names the required placeholders when it needs them.
+
+Absorb mode (no placeholder named): write ONE merged summary and emit no placeholder token at all — nothing parses it and it would surface as literal text.
+
+Placeholder mode (required blocks named): reference each one with this exact format:
 
 - \`${placeholder}\`
 
-Compressed block sections in context are clearly marked with a header:
+Compressed block sections carry the header \`[Compressed conversation section]\`.
 
-- \`[Compressed conversation section]\`
-
-${compact ? "Compressed block IDs look like `@b1@`, distinct from raw message IDs like `@4@`." : "Compressed block IDs always use the `bN` form (never `mNNNN`) and are represented in the same XML metadata tag format."}
+${compact ? "Compressed block IDs look like `@b1@`, distinct from raw message IDs like `@4@`." : "Compressed block IDs always use the `bN` form (never `mNNNN`) and use the same XML metadata tag format."}
 
 Rules:
 
 - Include every required block placeholder exactly once.
 - Do not invent placeholders for blocks outside the selected range.
-- Treat \`${placeholder}\` placeholders as RESERVED TOKENS. Do not emit \`${placeholder}\` text anywhere except intentional placeholders.
-- If you need to mention a block in prose, use plain text like \`compressed ${compact ? "block 1" : "bN"}\` (not as a placeholder).
-- Preflight check before finalizing: the set of \`${placeholder}\` placeholders in your summary must exactly match the required set, with no duplicates.
+- Treat \`${placeholder}\` as a RESERVED TOKEN: never emit it except as an intentional placeholder.
+- To name a block in prose, write plain text like \`compressed ${compact ? "block 1" : "bN"}\`.
+- Preflight: the placeholder set in your summary equals the required set — no duplicates, no extras.
 
-These placeholders are semantic references. They will be replaced with the full stored compressed block content when the tool processes your output.
+Placeholders are semantic references: each is replaced with the full stored block content when the tool processes your output.
 
-FLOW PRESERVATION WITH PLACEHOLDERS
-When you use compressed block placeholders, write the surrounding summary text so it still reads correctly AFTER placeholder expansion.
-
-- Treat each placeholder as a stand-in for a full conversation segment, not as a short label.
-- Ensure transitions before and after each placeholder preserve chronology and causality.
-- Do not write text that depends on the placeholder staying literal (for example, "as noted in \`${compact ? "@b2@" : "(b2)"}\`").
-- Your final meaning must be coherent once each placeholder is replaced with its full compressed block content.
+FLOW PRESERVATION
+Text around a placeholder must read correctly AFTER expansion. Treat the placeholder as a stand-in for a full conversation segment, keep chronology and causality across it, and never write a sentence that depends on it staying literal (for example "as noted in \`${compact ? "@b2@" : "(b2)"}\`").
 
 BOUNDARY IDS
 You specify boundaries by ID using the injected IDs visible in the conversation:
@@ -63,7 +81,7 @@ Rules:
 - Do not invent IDs. Use only IDs that are present in context.
 
 BATCHING
-When multiple independent ranges are ready and their boundaries do not overlap, include all of them as separate entries in the \`content\` array of a single tool call. Each entry should have its own \`startId\`, \`endId\`, and \`summary\`.
+When multiple independent ranges are ready and their boundaries do not overlap, include all of them as separate entries in the \`content\` array of a single tool call. Each entry carries its own \`startId\`, \`endId\` and \`summary\`.
 `
 }
 
