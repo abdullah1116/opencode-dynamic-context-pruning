@@ -28,6 +28,7 @@ export interface CompressConfig {
     showCompression: boolean
     summaryBuffer: boolean
     absorbBlocks: boolean
+    compressEveryMessages: number
     maxContextLimit: number | `${number}%`
     minContextLimit: number | `${number}%`
     modelMaxLimits?: Record<string, number | `${number}%`>
@@ -128,6 +129,7 @@ export const VALID_CONFIG_KEYS = new Set([
     "compress.showCompression",
     "compress.summaryBuffer",
     "compress.absorbBlocks",
+    "compress.compressEveryMessages",
     "compress.maxContextLimit",
     "compress.minContextLimit",
     "compress.modelMaxLimits",
@@ -383,6 +385,17 @@ export function validateConfigTypes(config: Record<string, any>): ValidationErro
                     key: "compress.summaryBuffer",
                     expected: "boolean",
                     actual: typeof compress.summaryBuffer,
+                })
+            }
+
+            if (
+                compress.compressEveryMessages !== undefined &&
+                typeof compress.compressEveryMessages !== "number"
+            ) {
+                errors.push({
+                    key: "compress.compressEveryMessages",
+                    expected: "number",
+                    actual: typeof compress.compressEveryMessages,
                 })
             }
 
@@ -693,7 +706,8 @@ const defaultConfig: PluginConfig = {
         permission: "allow",
         showCompression: false,
         summaryBuffer: true,
-        absorbBlocks: false,
+        absorbBlocks: true,
+        compressEveryMessages: 20,
         maxContextLimit: 100000,
         minContextLimit: 50000,
         nudgeFrequency: 5,
@@ -859,6 +873,7 @@ function mergeCompress(
         showCompression: override.showCompression ?? base.showCompression,
         summaryBuffer: override.summaryBuffer ?? base.summaryBuffer,
         absorbBlocks: override.absorbBlocks ?? base.absorbBlocks,
+        compressEveryMessages: override.compressEveryMessages ?? base.compressEveryMessages,
         maxContextLimit: override.maxContextLimit ?? base.maxContextLimit,
         minContextLimit: override.minContextLimit ?? base.minContextLimit,
         modelMaxLimits: override.modelMaxLimits ?? base.modelMaxLimits,

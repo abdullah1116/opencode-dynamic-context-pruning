@@ -75,9 +75,12 @@ const DCP_SYSTEM_REMINDER_TAG_REGEX =
     /^\s*<dcp-system-reminder\b[^>]*>[\s\S]*<\/dcp-system-reminder>\s*$/i
 const DEFAULTS_README_FILE = "README.md"
 
-function bundledPrompts(format: IdFormat): Record<EditablePromptField, string> {
+function bundledPrompts(
+    format: IdFormat,
+    compressEveryMessages: number,
+): Record<EditablePromptField, string> {
     return {
-        system: systemPrompt(format),
+        system: systemPrompt(format, compressEveryMessages),
         compressRange: rangePrompt(format),
         compressMessage: messagePrompt(format),
     }
@@ -279,11 +282,12 @@ export class PromptStore {
         workingDirectory: string,
         customPromptsEnabled = false,
         idFormat: IdFormat = "xml",
+        compressEveryMessages: number = 20,
     ) {
         this.logger = logger
         this.paths = resolvePromptPaths(workingDirectory)
         this.customPromptsEnabled = customPromptsEnabled
-        this.bundled = bundledPrompts(idFormat)
+        this.bundled = bundledPrompts(idFormat, compressEveryMessages)
         this.runtimePrompts = createBundledRuntimePrompts(this.bundled)
 
         if (this.customPromptsEnabled) {

@@ -35,8 +35,10 @@ Rules:
 - Do not invent IDs. Use only IDs that are present in context.
 
 BATCHING
-Select MANY messages in a single tool call when they are safe to compress.
-Each entry should summarize exactly one message, and the tool can receive as many entries as needed in one batch.
+
+Batch is the default vehicle: sweep the conversation for messages that are safe to compress, then emit ONE call carrying each one as its own entry — the tool receives as many entries as needed in one batch. A single-entry call is the exception, justified only when exactly one message is ready to compress.
+
+Each entry should summarize exactly one message, and each entry is exhaustive on its own — batching never buys brevity: no entry's summary is trimmed for the batch's sake.
 
 GENERAL CLEANUP
 Use the topic "general cleanup" for broad cleanup passes.

@@ -158,8 +158,13 @@
                 },
                 "absorbBlocks": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "When true, compressing a range that contains compressed blocks drops those blocks' stored text instead of inlining it. Nested compression then actually reduces tokens, at the cost of losing the absorbed text from the visible context."
+                },
+                "compressEveryMessages": {
+                    "type": "number",
+                    "default": 20,
+                    "description": "Compression cadence floor. The system prompt instructs the model to compress at minimum once every N messages. 0 or a negative value disables the cadence rule."
                 },
                 "maxContextLimit": {
                     "description": "Soft upper threshold. Above this, DCP keeps sending strong compression nudges (based on nudgeFrequency), so the model is pushed to compress. Accepts number or \"X%\" of the model context window.",

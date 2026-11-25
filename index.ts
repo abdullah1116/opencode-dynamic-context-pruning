@@ -29,7 +29,13 @@ const server: Plugin = (async (ctx) => {
 
     const logger = new Logger(config.debug)
     const state = createSessionState()
-    const prompts = new PromptStore(logger, ctx.directory, config.experimental.customPrompts)
+    const prompts = new PromptStore(
+        logger,
+        ctx.directory,
+        config.experimental.customPrompts,
+        undefined,
+        config.compress.compressEveryMessages,
+    )
     const hostPermissions: HostPermissionSnapshot = {
         global: undefined,
         agents: {},

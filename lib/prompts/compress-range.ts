@@ -81,7 +81,16 @@ Rules:
 - Do not invent IDs. Use only IDs that are present in context.
 
 BATCHING
-When multiple independent ranges are ready and their boundaries do not overlap, include all of them as separate entries in the \`content\` array of a single tool call. Each entry carries its own \`startId\`, \`endId\` and \`summary\`.
+
+Batch is the default vehicle: sweep the whole conversation for closed ranges, then emit ONE tool call carrying every ready range as a separate entry in the \`content\` array. A single-range call is the exception, justified only when exactly one closed range exists.
+
+Non-overlap is a precondition, not an error to discover after the fact: ranges must not overlap. Adjacent ranges that share no messages are fine; overlapping ranges must be split or merged before batching. Check boundaries while selecting, not while composing.
+
+Boundaries are tight: start a range at the first message of its topic and end it at the topic's last message. Do not pad a range with live context — still-active conversation stays outside every range, in every entry of the batch.
+
+GRANULARITY: prefer several tight one-topic ranges over one wide range spanning unrelated topics. The anti-pattern is a wide range over loosely related topics — it erases topic structure permanently. The preferred shape is many tight ranges batched into one call.
+
+Each entry carries full ★ detail for its own range. Batching never buys brevity: no entry's summary is trimmed for the batch's sake.
 `
 }
 

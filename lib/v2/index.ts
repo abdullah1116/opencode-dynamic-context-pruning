@@ -61,6 +61,7 @@ export async function setup(ctx: Plugin.Context) {
         ctx.location.directory,
         config.experimental.customPrompts,
         "compact",
+        config.compress.compressEveryMessages,
     )
     const sessions = new Map<string, SessionState>()
     const queues = new Map<string, Promise<unknown>>()

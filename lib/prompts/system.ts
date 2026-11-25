@@ -1,8 +1,13 @@
 import type { IdFormat } from "../message-ids"
 
-export function systemPrompt(format: IdFormat = "xml"): string {
+export function systemPrompt(format: IdFormat = "xml", compressEveryMessages = 20): string {
     const markers =
         format === "compact" ? "`@4@`, `@b1@`, `@blocked@`, priority labels" : "`<dcp-message-id>`"
+    // System prompt bytes must stay static per turn (prompt-cache constraint): only the config value is interpolated.
+    const cadenceSection =
+        compressEveryMessages > 0
+            ? `\nCOMPRESSION CADENCE\n\nCompress at minimum once every ${compressEveryMessages} messages — if ${compressEveryMessages} message positions have passed since the last compression, compress before starting new work.\n`
+            : ""
     return `
 You operate in a context-constrained environment. Manage context continuously to avoid buildup and preserve retrieval quality. Efficient context management is paramount for your agentic performance.
 
@@ -31,7 +36,7 @@ DO NOT COMPRESS IF
 - You may need exact code, error messages, or file contents in the immediate next steps
 
 Before compressing, ask: _"Is this section closed enough to become summary-only right now?"_
-
+${cadenceSection}
 Evaluate conversation signal-to-noise REGULARLY. Use \`compress\` deliberately with quality-first summaries. Prioritize stale content intelligently to maintain a high-signal context window that supports your agency.
 
 It is of your responsibility to keep a sharp, high-quality context window for optimal performance.
