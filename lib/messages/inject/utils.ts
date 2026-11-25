@@ -1,28 +1,12 @@
 import type { SessionState, WithParts } from "../../state"
 import type { PluginConfig } from "../../config"
-import {
-    appendGuidanceToDcpTag,
-    buildCompressedBlockGuidance,
-    renderMessagePriorityGuidance,
-} from "../../prompts/extensions/nudge"
-import type { RuntimePrompts } from "../../prompts/store"
+import type { Logger } from "../../logger"
 import type { UserMessage } from "@opencode-ai/sdk/v2"
-import {
-    type CompressionPriorityMap,
-    type MessagePriority,
-    listPriorityRefsBeforeIndex,
-} from "../priority"
-import {
-    appendToTextPart,
-    appendToLastTextPart,
-    createSyntheticTextPart,
-    hasContent,
-} from "../utils"
+import { formatBlockRef } from "../../message-ids"
 import { getLastUserMessage, isIgnoredUserMessage } from "../query"
+import { generateStableId } from "../utils"
 import { getCurrentTokenUsage } from "../../token-utils"
 import { getActiveSummaryTokenUsage } from "../../state/utils"
-
-const MESSAGE_MODE_NUDGE_PRIORITY: MessagePriority = "high"
 
 export interface LastUserModelContext {
     providerId: string | undefined
@@ -34,12 +18,32 @@ export interface LastNonIgnoredMessage {
     index: number
 }
 
+export interface ContextLimitUsage {
+    tokens: number
+    min: number | undefined
+    max: number | undefined
+    overMaxLimit: boolean
+    overMinLimit: boolean
+}
+
 export function getNudgeFrequency(config: PluginConfig): number {
     return Math.max(1, Math.floor(config.compress.nudgeFrequency || 1))
 }
 
 export function getIterationNudgeThreshold(config: PluginConfig): number {
     return Math.max(1, Math.floor(config.compress.iterationNudgeThreshold || 1))
+}
+
+export function isNudgeDue(lastAt: number, messageCount: number, interval: number): boolean {
+    return lastAt === 0 || messageCount - lastAt >= interval
+}
+
+export function getNudgeRearmDelta(max: number): number {
+    return Math.max(5000, Math.round(max * 0.05))
+}
+
+export function isTokenNudgeDue(lastTokens: number, tokens: number, max: number): boolean {
+    return lastTokens === 0 || tokens - lastTokens >= getNudgeRearmDelta(max)
 }
 
 export function findLastNonIgnoredMessage(messages: WithParts[]): LastNonIgnoredMessage | null {
@@ -135,7 +139,7 @@ export function isContextOverLimits(
     providerId: string | undefined,
     modelId: string | undefined,
     messages: WithParts[],
-) {
+): ContextLimitUsage {
     const summaryTokenExtension = config.compress.summaryBuffer
         ? getActiveSummaryTokenUsage(state)
         : 0
@@ -146,229 +150,115 @@ export function isContextOverLimits(
         modelId,
         "max",
     )
-    const maxContextLimit =
+    const max =
         resolvedMaxContextLimit === undefined
             ? undefined
             : resolvedMaxContextLimit + summaryTokenExtension
-    const minContextLimit = resolveContextTokenLimit(config, state, providerId, modelId, "min")
-    const currentTokens = getCurrentTokenUsage(state, messages)
-
-    const overMaxLimit = maxContextLimit === undefined ? false : currentTokens > maxContextLimit
-    const overMinLimit = minContextLimit === undefined ? true : currentTokens >= minContextLimit
+    const min = resolveContextTokenLimit(config, state, providerId, modelId, "min")
+    const tokens = getCurrentTokenUsage(state, messages)
 
     return {
-        overMaxLimit,
-        overMinLimit,
+        tokens,
+        min,
+        max,
+        overMaxLimit: max === undefined ? false : tokens > max,
+        overMinLimit: min === undefined ? true : tokens >= min,
     }
 }
 
-export function addAnchor(
-    anchorMessageIds: Set<string>,
-    anchorMessageId: string,
-    anchorMessageIndex: number,
-    messages: WithParts[],
-    interval: number,
-): boolean {
-    if (anchorMessageIndex < 0) {
-        return false
-    }
+const warnedRefSessions = new Set<string>()
 
-    let latestAnchorMessageIndex = -1
-    for (let i = messages.length - 1; i >= 0; i--) {
-        if (anchorMessageIds.has(messages[i].info.id)) {
-            latestAnchorMessageIndex = i
-            break
-        }
-    }
+export function getActiveBlockRefs(state: SessionState, logger?: Logger): string[] {
+    const refs: string[] = []
+    const blockIds = Array.from(state.prune.messages.activeBlockIds)
+        .filter((id) => Number.isInteger(id) && id > 0)
+        .sort((a, b) => a - b)
 
-    const shouldAdd =
-        latestAnchorMessageIndex < 0 || anchorMessageIndex - latestAnchorMessageIndex >= interval
-    if (!shouldAdd) {
-        return false
-    }
-
-    const previousSize = anchorMessageIds.size
-    anchorMessageIds.add(anchorMessageId)
-    return anchorMessageIds.size !== previousSize
-}
-
-function buildMessagePriorityGuidance(
-    messages: WithParts[],
-    compressionPriorities: CompressionPriorityMap | undefined,
-    anchorIndex: number,
-    priority: MessagePriority,
-): string {
-    if (!compressionPriorities || compressionPriorities.size === 0) {
-        return ""
-    }
-
-    const refs = listPriorityRefsBeforeIndex(messages, compressionPriorities, anchorIndex, priority)
-    const priorityLabel = `${priority[0].toUpperCase()}${priority.slice(1)}`
-
-    return renderMessagePriorityGuidance(priorityLabel, refs)
-}
-
-function injectAnchoredNudge(message: WithParts, nudgeText: string): void {
-    if (!nudgeText.trim()) {
-        return
-    }
-
-    if (message.info.role === "user") {
-        if (appendToLastTextPart(message, nudgeText)) {
-            return
-        }
-
-        message.parts.push(createSyntheticTextPart(message, nudgeText))
-        return
-    }
-
-    if (message.info.role !== "assistant") {
-        return
-    }
-
-    if (!hasContent(message)) {
-        return
-    }
-
-    for (const part of message.parts) {
-        if (part.type === "text") {
-            if (appendToTextPart(part, nudgeText)) {
-                return
+    for (const id of blockIds) {
+        try {
+            const ref = formatBlockRef(id, state.idFormat)
+            if (ref.length === 0) {
+                throw new Error("empty block ref")
+            }
+            refs.push(ref)
+        } catch (error) {
+            const sessionID = state.sessionId ?? "unknown"
+            if (!warnedRefSessions.has(sessionID)) {
+                warnedRefSessions.add(sessionID)
+                logger?.warn("failed to format active block ref, omitting it", {
+                    sessionID,
+                    blockId: id,
+                    error: error instanceof Error ? error.message : undefined,
+                })
             }
         }
     }
 
-    const syntheticPart = createSyntheticTextPart(message, nudgeText)
-    const firstToolIndex = message.parts.findIndex((p) => p.type === "tool")
-    if (firstToolIndex === -1) {
-        message.parts.push(syntheticPart)
-    } else {
-        message.parts.splice(firstToolIndex, 0, syntheticPart)
-    }
+    return refs
 }
 
-function collectAnchoredMessages(
-    anchorMessageIds: Set<string>,
-    messages: WithParts[],
-): Array<{ message: WithParts; index: number }> {
-    const anchoredMessages: Array<{ message: WithParts; index: number }> = []
+const warnedNudgeSessions = new Set<string>()
 
-    for (const anchorMessageId of anchorMessageIds) {
-        const index = messages.findIndex((message) => message.info.id === anchorMessageId)
-        if (index === -1) {
-            continue
-        }
-
-        anchoredMessages.push({
-            message: messages[index],
-            index,
-        })
-    }
-
-    return anchoredMessages
-}
-
-function collectTurnNudgeAnchors(
-    state: SessionState,
-    config: PluginConfig,
-    messages: WithParts[],
-): Set<string> {
-    const turnNudgeAnchors = new Set<string>()
-    const targetRole = config.compress.nudgeForce === "strong" ? "user" : "assistant"
-
-    for (const message of messages) {
-        if (!state.nudges.turnNudgeAnchors.has(message.info.id)) continue
-
-        if (message.info.role === targetRole) {
-            turnNudgeAnchors.add(message.info.id)
-        }
-    }
-
-    return turnNudgeAnchors
-}
-
-function applyRangeModeAnchoredNudge(
-    anchorMessageIds: Set<string>,
-    messages: WithParts[],
-    baseNudgeText: string,
-    compressedBlockGuidance: string,
-): void {
-    const nudgeText = appendGuidanceToDcpTag(baseNudgeText, compressedBlockGuidance)
-    if (!nudgeText.trim()) {
+export function warnNudgeUnavailable(logger: Logger, sessionID: string): void {
+    if (warnedNudgeSessions.has(sessionID)) {
         return
     }
 
-    for (const { message } of collectAnchoredMessages(anchorMessageIds, messages)) {
-        injectAnchoredNudge(message, nudgeText)
+    warnedNudgeSessions.add(sessionID)
+    logger.warn("nudge messages array unavailable, skipping compress nudge", {
+        sessionID,
+    })
+}
+
+export function createEphemeralNudgeMessage(
+    baseMessage: WithParts,
+    sessionID: string,
+    trigger: string,
+    text: string,
+): WithParts {
+    const userInfo = baseMessage.info as UserMessage
+    const seed = `${sessionID}:${trigger}`
+    const messageId = generateStableId("msg_nudge_ephemeral", seed)
+    const partId = generateStableId("prt_nudge_ephemeral", seed)
+
+    return {
+        info: {
+            id: messageId,
+            sessionID,
+            role: "user" as const,
+            agent: userInfo.agent,
+            model: userInfo.model,
+            time: { created: Date.now() },
+        },
+        parts: [
+            {
+                id: partId,
+                sessionID,
+                messageID: messageId,
+                type: "text" as const,
+                text,
+                synthetic: true,
+            },
+        ],
     }
 }
 
-function applyMessageModeAnchoredNudge(
-    anchorMessageIds: Set<string>,
+export function appendEphemeralNudge(
+    sessionID: string,
+    trigger: string,
+    text: string,
     messages: WithParts[],
-    baseNudgeText: string,
-    compressionPriorities?: CompressionPriorityMap,
-): void {
-    for (const { message, index } of collectAnchoredMessages(anchorMessageIds, messages)) {
-        const priorityGuidance = buildMessagePriorityGuidance(
-            messages,
-            compressionPriorities,
-            index,
-            MESSAGE_MODE_NUDGE_PRIORITY,
-        )
-        const nudgeText = appendGuidanceToDcpTag(baseNudgeText, priorityGuidance)
-        injectAnchoredNudge(message, nudgeText)
-    }
-}
-
-export function applyAnchoredNudges(
-    state: SessionState,
-    config: PluginConfig,
-    messages: WithParts[],
-    prompts: RuntimePrompts,
-    compressionPriorities?: CompressionPriorityMap,
-): void {
-    const turnNudgeAnchors = collectTurnNudgeAnchors(state, config, messages)
-
-    if (config.compress.mode === "message") {
-        applyMessageModeAnchoredNudge(
-            state.nudges.contextLimitAnchors,
-            messages,
-            prompts.contextLimitNudge,
-            compressionPriorities,
-        )
-        applyMessageModeAnchoredNudge(
-            turnNudgeAnchors,
-            messages,
-            prompts.turnNudge,
-            compressionPriorities,
-        )
-        applyMessageModeAnchoredNudge(
-            state.nudges.iterationNudgeAnchors,
-            messages,
-            prompts.iterationNudge,
-            compressionPriorities,
-        )
-        return
+): boolean {
+    const baseMessage = getLastUserMessage(messages)
+    if (!baseMessage) {
+        return false
     }
 
-    const compressedBlockGuidance = buildCompressedBlockGuidance(state)
-    applyRangeModeAnchoredNudge(
-        state.nudges.contextLimitAnchors,
-        messages,
-        prompts.contextLimitNudge,
-        compressedBlockGuidance,
-    )
-    applyRangeModeAnchoredNudge(
-        turnNudgeAnchors,
-        messages,
-        prompts.turnNudge,
-        compressedBlockGuidance,
-    )
-    applyRangeModeAnchoredNudge(
-        state.nudges.iterationNudgeAnchors,
-        messages,
-        prompts.iterationNudge,
-        compressedBlockGuidance,
-    )
+    const message = createEphemeralNudgeMessage(baseMessage, sessionID, trigger, text)
+    if (messages.some((existing) => existing.info.id === message.info.id)) {
+        return false
+    }
+
+    messages.push(message)
+    return true
 }

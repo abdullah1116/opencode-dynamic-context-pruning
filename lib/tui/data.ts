@@ -3,7 +3,12 @@ import { Logger } from "../logger"
 import { filterMessages } from "../messages/shape"
 import { createSessionState, type SessionState, type WithParts } from "../state"
 import { loadSessionState } from "../state/persistence"
-import { findLastCompactionTimestamp, loadPruneMap, loadPruneMessagesState } from "../state/utils"
+import {
+    findLastCompactionTimestamp,
+    loadNudges,
+    loadPruneMap,
+    loadPruneMessagesState,
+} from "../state/utils"
 import type { TuiApi } from "./types"
 
 export const logger = new Logger(false)
@@ -51,9 +56,7 @@ export async function buildSessionState(
 
         state.prune.tools = loadPruneMap(persisted.prune.tools)
         state.prune.messages = loadPruneMessagesState(persisted.prune.messages)
-        state.nudges.contextLimitAnchors = new Set(persisted.nudges.contextLimitAnchors || [])
-        state.nudges.turnNudgeAnchors = new Set(persisted.nudges.turnNudgeAnchors || [])
-        state.nudges.iterationNudgeAnchors = new Set(persisted.nudges.iterationNudgeAnchors || [])
+        state.nudges = loadNudges(persisted.nudges)
         state.stats = {
             pruneTokenCounter: persisted.stats?.pruneTokenCounter || 0,
             totalPruneTokens: persisted.stats?.totalPruneTokens || 0,

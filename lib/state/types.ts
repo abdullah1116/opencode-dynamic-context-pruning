@@ -87,9 +87,9 @@ export interface MessageIdState {
 }
 
 export interface Nudges {
-    contextLimitAnchors: Set<string>
-    turnNudgeAnchors: Set<string>
-    iterationNudgeAnchors: Set<string>
+    ceilingTokens: number
+    iterationAt: number
+    windowTokens: number
 }
 
 export interface SessionState {

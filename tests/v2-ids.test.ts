@@ -145,6 +145,23 @@ test("V2 cleans echoed IDs and priorities before injecting correct protected/mes
     )
 })
 
+test("V2 keeps compaction placeholders in synthetic nudge text", () => {
+    const state = createSessionState("compact")
+    const raw = messages("ses_nudge_strip")
+    raw[0]!.parts = [
+        { type: "text", text: "  ▣  COMPRESSED BLOCKS IN SESSION: 2 (@b1@, @b2@)" },
+    ] as WithParts["parts"]
+    raw[1]!.parts = [{ type: "text", text: "echoed @b9@" }] as WithParts["parts"]
+
+    stripHallucinations(raw, state.idFormat, new Set([raw[0]!.info.id]))
+
+    assert.equal(
+        (raw[0]!.parts[0] as any).text,
+        "  ▣  COMPRESSED BLOCKS IN SESSION: 2 (@b1@, @b2@)",
+    )
+    assert.equal((raw[1]!.parts[0] as any).text, "echoed ")
+})
+
 test("V2 range compression resolves block IDs and expands nested placeholders", async () => {
     const { raw, state, settings, client, tool, run, sessionID } = fixture("range")
     await tool.execute(

@@ -12,7 +12,7 @@ const INJECTED_MESSAGE_ID_SUFFIX_REGEX = /(?<=\n)<dcp-message-id[^>]*>m\d+<\/dcp
 const HALLUCINATED_PARAMETER_SUFFIX_REGEX = /(?<=\n)m\d+<\/parameter>\s*$/
 const COMPACT_TAG_REGEX = /@(?:[1-9]\d*|b[1-9]\d*|blocked)@(?:[ \t]+\[(?:low|medium|high)\])?/gi
 
-const generateStableId = (prefix: string, seed: string): string => {
+export const generateStableId = (prefix: string, seed: string): string => {
     const hash = createHash("sha256").update(seed).digest("hex").slice(0, SUMMARY_ID_HASH_LENGTH)
     return `${prefix}_${hash}`
 }
@@ -177,8 +177,15 @@ export const stripHallucinationsFromString = (text: string, format: IdFormat = "
         .replace(DCP_UNPAIRED_TAG_REGEX, "")
 }
 
-export const stripHallucinations = (messages: WithParts[], format: IdFormat = "xml"): void => {
+export const stripHallucinations = (
+    messages: WithParts[],
+    format: IdFormat = "xml",
+    skipMessageIds?: ReadonlySet<string>,
+): void => {
     for (const message of messages) {
+        if (skipMessageIds?.has(message.info.id)) {
+            continue
+        }
         for (const part of message.parts) {
             if (part.type === "text" && typeof part.text === "string") {
                 part.text = stripHallucinationsFromString(part.text, format)

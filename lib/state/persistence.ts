@@ -28,9 +28,9 @@ export interface PersistedPrune {
 }
 
 export interface PersistedNudges {
-    contextLimitAnchors: string[]
-    turnNudgeAnchors?: string[]
-    iterationNudgeAnchors?: string[]
+    ceilingTokens?: number
+    iterationAt?: number
+    windowTokens?: number
 }
 
 export interface PersistedSessionState {
@@ -95,9 +95,9 @@ export async function saveSessionState(
                 messages: serializePruneMessagesState(sessionState.prune.messages),
             },
             nudges: {
-                contextLimitAnchors: Array.from(sessionState.nudges.contextLimitAnchors),
-                turnNudgeAnchors: Array.from(sessionState.nudges.turnNudgeAnchors),
-                iterationNudgeAnchors: Array.from(sessionState.nudges.iterationNudgeAnchors),
+                ceilingTokens: sessionState.nudges.ceilingTokens,
+                iterationAt: sessionState.nudges.iterationAt,
+                windowTokens: sessionState.nudges.windowTokens,
             },
             stats: sessionState.stats,
             lastUpdated: new Date().toISOString(),
@@ -143,53 +143,15 @@ export async function loadSessionState(
             return null
         }
 
-        const rawContextLimitAnchors = Array.isArray(state.nudges.contextLimitAnchors)
-            ? state.nudges.contextLimitAnchors
-            : []
-        const validAnchors = rawContextLimitAnchors.filter(
-            (entry): entry is string => typeof entry === "string",
-        )
-        const dedupedAnchors = [...new Set(validAnchors)]
-        if (validAnchors.length !== rawContextLimitAnchors.length) {
-            logger.warn("Filtered out malformed contextLimitAnchors entries", {
-                sessionId: sessionId,
-                original: rawContextLimitAnchors.length,
-                valid: validAnchors.length,
-            })
+        const nudgeCount = (value: unknown): number =>
+            typeof value === "number" && Number.isFinite(value) && value >= 0
+                ? Math.floor(value)
+                : 0
+        state.nudges = {
+            ceilingTokens: nudgeCount(state.nudges.ceilingTokens),
+            iterationAt: nudgeCount(state.nudges.iterationAt),
+            windowTokens: nudgeCount(state.nudges.windowTokens),
         }
-        state.nudges.contextLimitAnchors = dedupedAnchors
-
-        const rawTurnNudgeAnchors = Array.isArray(state.nudges.turnNudgeAnchors)
-            ? state.nudges.turnNudgeAnchors
-            : []
-        const validSoftAnchors = rawTurnNudgeAnchors.filter(
-            (entry): entry is string => typeof entry === "string",
-        )
-        const dedupedSoftAnchors = [...new Set(validSoftAnchors)]
-        if (validSoftAnchors.length !== rawTurnNudgeAnchors.length) {
-            logger.warn("Filtered out malformed turnNudgeAnchors entries", {
-                sessionId: sessionId,
-                original: rawTurnNudgeAnchors.length,
-                valid: validSoftAnchors.length,
-            })
-        }
-        state.nudges.turnNudgeAnchors = dedupedSoftAnchors
-
-        const rawIterationNudgeAnchors = Array.isArray(state.nudges.iterationNudgeAnchors)
-            ? state.nudges.iterationNudgeAnchors
-            : []
-        const validIterationAnchors = rawIterationNudgeAnchors.filter(
-            (entry): entry is string => typeof entry === "string",
-        )
-        const dedupedIterationAnchors = [...new Set(validIterationAnchors)]
-        if (validIterationAnchors.length !== rawIterationNudgeAnchors.length) {
-            logger.warn("Filtered out malformed iterationNudgeAnchors entries", {
-                sessionId: sessionId,
-                original: rawIterationNudgeAnchors.length,
-                valid: validIterationAnchors.length,
-            })
-        }
-        state.nudges.iterationNudgeAnchors = dedupedIterationAnchors
 
         logger.info("Loaded session state from disk", {
             sessionId: sessionId,
@@ -220,9 +182,9 @@ function emptyPersistedState(manualMode: boolean): PersistedSessionState {
             },
         },
         nudges: {
-            contextLimitAnchors: [],
-            turnNudgeAnchors: [],
-            iterationNudgeAnchors: [],
+            ceilingTokens: 0,
+            iterationAt: 0,
+            windowTokens: 0,
         },
         stats: {
             pruneTokenCounter: 0,
