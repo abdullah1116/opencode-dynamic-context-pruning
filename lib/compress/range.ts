@@ -90,25 +90,29 @@ export function createCompressRangeTool(ctx: ToolContext): ReturnType<typeof too
             let totalCompressedMessages = 0
 
             for (const plan of resolvedPlans) {
-                const parsedPlaceholders = parseBlockPlaceholders(
-                    plan.entry.summary,
-                    ctx.state.idFormat,
-                )
-                const missingBlockIds = validateSummaryPlaceholders(
-                    parsedPlaceholders,
-                    plan.selection.requiredBlockIds,
-                    plan.selection.startReference,
-                    plan.selection.endReference,
-                    searchContext.summaryByBlockId,
-                )
+                const absorb = ctx.config.compress.absorbBlocks
+                const parsedPlaceholders = absorb
+                    ? []
+                    : parseBlockPlaceholders(plan.entry.summary, ctx.state.idFormat)
+                const missingBlockIds = absorb
+                    ? []
+                    : validateSummaryPlaceholders(
+                          parsedPlaceholders,
+                          plan.selection.requiredBlockIds,
+                          plan.selection.startReference,
+                          plan.selection.endReference,
+                          searchContext.summaryByBlockId,
+                      )
 
-                const injected = injectBlockPlaceholders(
-                    plan.entry.summary,
-                    parsedPlaceholders,
-                    searchContext.summaryByBlockId,
-                    plan.selection.startReference,
-                    plan.selection.endReference,
-                )
+                const injected = absorb
+                    ? { expandedSummary: plan.entry.summary, consumedBlockIds: [] }
+                    : injectBlockPlaceholders(
+                          plan.entry.summary,
+                          parsedPlaceholders,
+                          searchContext.summaryByBlockId,
+                          plan.selection.startReference,
+                          plan.selection.endReference,
+                      )
 
                 const summaryWithUsers = appendProtectedUserMessages(
                     injected.expandedSummary,
@@ -137,13 +141,24 @@ export function createCompressRangeTool(ctx: ToolContext): ReturnType<typeof too
                     ctx.config.protectedFilePatterns,
                 )
 
-                const completedSummary = appendMissingBlockSummaries(
-                    summaryWithTools,
-                    missingBlockIds,
-                    searchContext.summaryByBlockId,
-                    injected.consumedBlockIds,
-                    ctx.state.idFormat,
-                )
+                const completedSummary = absorb
+                    ? {
+                          expandedSummary: summaryWithTools,
+                          consumedBlockIds: [
+                              ...new Set(
+                                  plan.selection.requiredBlockIds.filter(
+                                      (id) => Number.isInteger(id) && id > 0,
+                                  ),
+                              ),
+                          ],
+                      }
+                    : appendMissingBlockSummaries(
+                          summaryWithTools,
+                          missingBlockIds,
+                          searchContext.summaryByBlockId,
+                          injected.consumedBlockIds,
+                          ctx.state.idFormat,
+                      )
 
                 preparedPlans.push({
                     entry: plan.entry,

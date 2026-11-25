@@ -27,6 +27,7 @@ export interface CompressConfig {
     permission: Permission
     showCompression: boolean
     summaryBuffer: boolean
+    absorbBlocks: boolean
     maxContextLimit: number | `${number}%`
     minContextLimit: number | `${number}%`
     modelMaxLimits?: Record<string, number | `${number}%`>
@@ -126,6 +127,7 @@ export const VALID_CONFIG_KEYS = new Set([
     "compress.permission",
     "compress.showCompression",
     "compress.summaryBuffer",
+    "compress.absorbBlocks",
     "compress.maxContextLimit",
     "compress.minContextLimit",
     "compress.modelMaxLimits",
@@ -691,6 +693,7 @@ const defaultConfig: PluginConfig = {
         permission: "allow",
         showCompression: false,
         summaryBuffer: true,
+        absorbBlocks: false,
         maxContextLimit: 100000,
         minContextLimit: 50000,
         nudgeFrequency: 5,
@@ -855,6 +858,7 @@ function mergeCompress(
         permission: override.permission ?? base.permission,
         showCompression: override.showCompression ?? base.showCompression,
         summaryBuffer: override.summaryBuffer ?? base.summaryBuffer,
+        absorbBlocks: override.absorbBlocks ?? base.absorbBlocks,
         maxContextLimit: override.maxContextLimit ?? base.maxContextLimit,
         minContextLimit: override.minContextLimit ?? base.minContextLimit,
         modelMaxLimits: override.modelMaxLimits ?? base.modelMaxLimits,

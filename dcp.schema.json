@@ -156,6 +156,11 @@
                     "default": true,
                     "description": "When enabled, active summary tokens extend the effective maxContextLimit used for context-limit nudges."
                 },
+                "absorbBlocks": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true, compressing a range that contains compressed blocks drops those blocks' stored text instead of inlining it. Nested compression then actually reduces tokens, at the cost of losing the absorbed text from the visible context."
+                },
                 "maxContextLimit": {
                     "description": "Soft upper threshold. Above this, DCP keeps sending strong compression nudges (based on nudgeFrequency), so the model is pushed to compress. Accepts number or \"X%\" of the model context window.",
                     "default": 100000,

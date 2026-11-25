@@ -206,11 +206,11 @@ test("window nudge is selected in-window at a user turn boundary", async () => {
     assert.equal(nudges.length, 1)
     assert.match(
         nudges[0].parts[0].type === "text" ? nudges[0].parts[0].text : "",
-        /CONTEXT WINDOW ALERT/,
+        /CONTEXT CHECKPOINT/,
     )
 })
 
-test("window nudge lists active blocks as the placeholders compress requires", async () => {
+test("window nudge lists active blocks already compressed in the session", async () => {
     const messages = [
         buildUserMessage("msg-user-refs-1", 1),
         buildAssistantMessage("msg-assistant-refs", 2, 900),
@@ -227,7 +227,7 @@ test("window nudge lists active blocks as the placeholders compress requires", a
     const nudges = getEphemeralNudges(messages)
     assert.equal(nudges.length, 1)
     const text = nudges[0].parts[0].type === "text" ? nudges[0].parts[0].text : ""
-    assert.match(text, /\n  ▣  COMPRESSED BLOCKS IN SESSION: 2 \(@b1@, @b2@\)\n/)
+    assert.match(text, /\n  Blocks already compressed: 2 \(@b1@, @b2@\)\n/)
 })
 
 test("repeated evaluations stay quiet until the frequency gate opens", async () => {
@@ -275,7 +275,7 @@ test("window nudge is edge-triggered and re-arms only past the token delta", asy
     assert.equal(getEphemeralNudges(first).length, 1)
     assert.match(
         getEphemeralNudges(first)[0].parts[0].type === "text" ? getEphemeralNudges(first)[0].parts[0].text : "",
-        /CONTEXT WINDOW ALERT/,
+        /CONTEXT CHECKPOINT/,
     )
 
     const second = [
@@ -301,7 +301,7 @@ test("window nudge is edge-triggered and re-arms only past the token delta", asy
     assert.equal(getEphemeralNudges(third).length, 1)
     assert.match(
         getEphemeralNudges(third)[0].parts[0].type === "text" ? getEphemeralNudges(third)[0].parts[0].text : "",
-        /CONTEXT WINDOW ALERT/,
+        /CONTEXT CHECKPOINT/,
     )
 })
 

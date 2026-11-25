@@ -34,32 +34,33 @@ export function buildWindowAlert(input: WindowAlertInput): string {
     const refs = formatBlockRefs(input.blockRefs)
 
     return `╔═══════════════════════════════════════════════════════════════╗
-║   ▲▲▲   CONTEXT WINDOW ALERT   ▲▲▲   ACTION REQUIRED          ║
+║   CONTEXT CHECKPOINT · sweep due · nothing settled may be lost║
 ╚═══════════════════════════════════════════════════════════════╝
 
-    ▰▰▰▰▰▰▰▰▰▰▰▰▰    ▲▲▲    ▰▰▰▰▰▰▰▰▰▰▰▰▰
-
-  ⚠  CONTEXT  :  ${tokens} / ${max} tokens   (${pct}%)
-  ⚠  WINDOW   :  ${min} – ${max}
-  ⚠  HEADROOM :  ${headroom} tokens before the hard ceiling
-
+  CONTEXT    ${tokens} / ${max} tokens   (${pct}%)
+  HEADROOM   ${headroom} before the limit
+  BAND       ${min} – ${max}
 ───────────────────────────────────────────────────────────────
 
-  ▲▲   EVALUATE THE CONVERSATION FOR COMPRESSIBLE RANGES   ▲▲
+COMMAND: take one cheap pass over this window before continuing.
 
-  →  CLOSED RANGES      call \`compress\` on them NOW
-  →  DIRECTION SHIFTED  compress the older, irrelevant ranges first
-  →  ACTIVE WORK        leave uncompressed — never compress live context
+  1. CLASSIFY — seconds per message, no deep checks:
+       A ACTIVE   in-flight this phase        → raw
+       L LEDGER   decided, past phases        → compress, quote user
+       R RECORD   finished work               → compress to outcomes
+       X ERRATA   corrections                 → keep the fix, kill the corpse
+       F DROSS    failed/retried commands     → drop
+       T FACTS    paths, branches, links      → fact list
+       O OPEN     unresolved threads          → keep listed
+       C CHAFF    status noise                → drop
 
-───────────────────────────────────────────────────────────────
+  2. LOWER THE BAR — compress anything CLOSED; junk dies entire.
+     A one-line "it ran" outcome is enough for DROSS.
+  3. GUARD — same phase? past USER messages stay. Only junk goes.
+  4. TRUTH LENS FIRST — a corrected claim never survives as truth.
 
-  ▣  COMPRESSED BLOCKS IN SESSION: ${blockCount}${refs}
-
-     If your chosen range includes a listed block, include each
-     required placeholder exactly once in the summary.
-
-╔═══════════════════════════════════════════════════════════════╗
-║  ⚑   DO NOT LET THE CEILING ARRIVE UNNOTICED                  ║
+  Do not re-verify settled work. This is a sweep, not an audit.
+  Blocks already compressed: ${blockCount}${refs}
 ╚═══════════════════════════════════════════════════════════════╝`
 }
 
