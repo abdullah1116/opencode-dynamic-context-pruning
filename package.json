@@ -7,16 +7,16 @@
         "tests/logger"
     ],
     "description": "OpenCode plugin that optimizes token usage by pruning obsolete tool outputs from conversation context",
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
+    "main": "./index.ts",
+    "types": "./index.ts",
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "types": "./index.ts",
+            "import": "./index.ts"
         },
         "./server": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "types": "./index.ts",
+            "import": "./index.ts"
         },
         "./tui": {
             "types": "./dist/tui.d.ts",
@@ -63,15 +63,15 @@
     "dependencies": {
         "@anthropic-ai/tokenizer": "^0.0.4",
         "@opencode-ai/sdk": "^1.4.3",
-        "@opentui/core": "^0.4.5",
-        "@opentui/solid": "^0.4.5",
+        "@opentui/core": "0.5.10",
+        "@opentui/solid": "0.5.10",
         "jsonc-parser": "^3.3.1",
-        "solid-js": "^1.9.12"
+        "solid-js": "1.9.12"
     },
     "devDependencies": {
         "@opencode-ai/plugin": "^1.18.29",
-        "@opencode/plugin": "^2.0.4",
-        "@opencode/theme": "^2.0.4",
+        "@opencode/plugin": "2.0.4",
+        "@opencode/theme": "2.0.4",
         "@types/node": "^25.5.0",
         "prettier": "^3.8.1",
         "tsup": "^8.5.1",
@@ -89,6 +89,7 @@
     "files": [
         "dist/",
         "lib/",
+        "index.ts",
         "server.js",
         "tui.tsx",
         "README.md",

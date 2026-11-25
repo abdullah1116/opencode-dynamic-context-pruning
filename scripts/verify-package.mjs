@@ -17,6 +17,7 @@ const requiredRepoFiles = [
     "dist/index.js",
     "dist/index.d.ts",
     "dist/tui.d.ts",
+    "index.ts",
     "tui.tsx",
     "server.js",
     "README.md",
@@ -28,6 +29,7 @@ const requiredTarballFiles = [
     "dist/index.js",
     "dist/index.d.ts",
     "dist/tui.d.ts",
+    "index.ts",
     "tui.tsx",
     "server.js",
     "README.md",
@@ -36,7 +38,6 @@ const requiredTarballFiles = [
 
 const forbiddenTarballPatterns = [
     /^node_modules\//,
-    /^index\.ts$/,
     /^tests\//,
     /^scripts\//,
     /^docs\//,
@@ -65,16 +66,16 @@ function assertRepoFilesExist() {
 function assertPackageJsonShape() {
     const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"))
 
-    if (pkg.main !== "./dist/index.js") {
-        fail(`package.json main must remain ./dist/index.js, found ${pkg.main ?? "<missing>"}`)
+    if (pkg.main !== "./index.ts") {
+        fail(`package.json main must remain ./index.ts, found ${pkg.main ?? "<missing>"}`)
     }
 
-    if (pkg.exports?.["."]?.import !== "./dist/index.js") {
-        fail("expected package.json exports['.'].import to be './dist/index.js'")
+    if (pkg.exports?.["."]?.import !== "./index.ts") {
+        fail("expected package.json exports['.'].import to be './index.ts'")
     }
 
-    if (pkg.exports?.["./server"]?.import !== "./dist/index.js") {
-        fail("expected package.json exports['./server'].import to be './dist/index.js'")
+    if (pkg.exports?.["./server"]?.import !== "./index.ts") {
+        fail("expected package.json exports['./server'].import to be './index.ts'")
     }
 
     if (pkg.exports?.["./tui"]?.import !== "./tui.tsx") {
@@ -82,7 +83,7 @@ function assertPackageJsonShape() {
     }
 
     const files = Array.isArray(pkg.files) ? pkg.files : []
-    for (const entry of ["dist/", "lib/", "tui.tsx", "README.md", "LICENSE"]) {
+    for (const entry of ["dist/", "lib/", "index.ts", "tui.tsx", "README.md", "LICENSE"]) {
         if (!files.includes(entry)) {
             fail(`package.json files must include ${entry}`)
         }

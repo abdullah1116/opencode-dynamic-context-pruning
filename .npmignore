@@ -13,9 +13,6 @@ ANALYSIS.md
 docs/
 notes/
 
-# Server source file (server runtime ships dist/)
-index.ts
-
 # Git
 .git/
 .gitignore
