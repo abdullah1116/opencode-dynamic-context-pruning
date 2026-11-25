@@ -1,7 +1,7 @@
 # Dynamic Context Pruning Plugin
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/dansmolsky)
-[![npm version](https://img.shields.io/npm/v/@tarquinen/opencode-dcp.svg)](https://www.npmjs.com/package/@tarquinen/opencode-dcp)
+[![npm version](https://img.shields.io/npm/v/@abdullah1116/opencode-dynamic-context-pruning.svg)](https://www.npmjs.com/package/@abdullah1116/opencode-dynamic-context-pruning)
 
 Automatically reduces token usage in OpenCode by managing conversation context.
 
@@ -12,10 +12,24 @@ Automatically reduces token usage in OpenCode by managing conversation context.
 Install from the OpenCode V2 CLI:
 
 ```bash
-opencode plugin add @tarquinen/opencode-dcp@latest
+opencode plugin add @abdullah1116/opencode-dynamic-context-pruning@latest
 ```
 
 This installs the package and adds it to your global OpenCode config.
+
+## Install from npm
+
+```bash
+npm install @abdullah1116/opencode-dynamic-context-pruning
+```
+
+Register it in your OpenCode `opencode.jsonc` under `plugins` (plural):
+
+```jsonc
+{
+    "plugins": ["@abdullah1116/opencode-dynamic-context-pruning"],
+}
+```
 
 ## Install from source
 
@@ -23,7 +37,7 @@ Clone this branch and run `npm install --legacy-peer-deps`: a known upstream pee
 
 ```jsonc
 {
-    "plugins": ["/absolute/path/to/opencode-dynamic-context-pruning"]
+    "plugins": ["/absolute/path/to/opencode-dynamic-context-pruning"],
 }
 ```
 

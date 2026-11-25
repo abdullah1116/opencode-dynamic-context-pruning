@@ -1,7 +1,7 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
-    "name": "@tarquinen/opencode-dcp",
-    "version": "3.2.1",
+    "name": "@abdullah1116/opencode-dynamic-context-pruning",
+    "version": "3.3.0",
     "type": "module",
     "workspaces": [
         "tests/logger"
@@ -26,7 +26,6 @@
     "scripts": {
         "clean": "rm -rf dist",
         "build": "npm run clean && tsup && tsc --emitDeclarationOnly",
-        "prepare": "npm run build",
         "verify:package": "node scripts/verify-package.mjs",
         "check:package": "npm run build && npm run verify:package",
         "prepublishOnly": "npm run check:package",
@@ -49,7 +48,7 @@
     ],
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/Tarquinen/opencode-dynamic-context-pruning.git"
+        "url": "https://github.com/abdullah1116/opencode-dynamic-context-pruning.git"
     },
     "bugs": {
         "url": "https://github.com/Tarquinen/opencode-dynamic-context-pruning/issues"
@@ -87,7 +86,6 @@
         "zod": "4.6.7"
     },
     "files": [
-        "dist/",
         "lib/",
         "index.ts",
         "server.js",

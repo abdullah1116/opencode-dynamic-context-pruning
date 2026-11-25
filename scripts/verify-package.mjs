@@ -26,9 +26,6 @@ const requiredRepoFiles = [
 
 const requiredTarballFiles = [
     "package.json",
-    "dist/index.js",
-    "dist/index.d.ts",
-    "dist/tui.d.ts",
     "index.ts",
     "tui.tsx",
     "server.js",
@@ -37,6 +34,7 @@ const requiredTarballFiles = [
 ]
 
 const forbiddenTarballPatterns = [
+    /^dist\//,
     /^node_modules\//,
     /^tests\//,
     /^scripts\//,
@@ -83,10 +81,14 @@ function assertPackageJsonShape() {
     }
 
     const files = Array.isArray(pkg.files) ? pkg.files : []
-    for (const entry of ["dist/", "lib/", "index.ts", "tui.tsx", "README.md", "LICENSE"]) {
+    for (const entry of ["lib/", "index.ts", "tui.tsx", "README.md", "LICENSE"]) {
         if (!files.includes(entry)) {
             fail(`package.json files must include ${entry}`)
         }
+    }
+
+    if (files.includes("dist/")) {
+        fail("package.json files must not include dist/: the entry point is committed source")
     }
 }
 
